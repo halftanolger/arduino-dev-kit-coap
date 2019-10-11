@@ -39,7 +39,7 @@ void setup() {
 
   // Set radio technology
   Serial.print("Set radio technology to NB-IoT or Cat-M1 (7 is for Cat M1 and 8 is for NB-IoT): ");
-  MODEM.send("AT+URAT=8");
+  MODEM.send("AT+URAT=7");
   MODEM.waitForResponse(100, &response);
   Serial.println(response);
   Serial.println("done.");
@@ -55,7 +55,7 @@ void setup() {
   Serial.println("Check attachment until CSQ RSSI indicator is less than 99...");
   int status = 99;
   while (status > 98 && status > 0) {
-    MODEM.sendf("AT+CSQ");
+    MODEM.send("AT+CSQ");
     MODEM.waitForResponse(2000, &response);
 
     String sub = response.substring(6, 8);
@@ -66,7 +66,7 @@ void setup() {
 
   // Set operator to Telenor
   Serial.println("Set operator to Telenor...");
-  MODEM.sendf("AT+COPS=1,2,\"" + COPS + "\"");
+  MODEM.sendf("AT+COPS=1,2,\"%s\"", COPS);
   MODEM.waitForResponse(2000, &response);
   Serial.println(response);
   Serial.println("done.");
