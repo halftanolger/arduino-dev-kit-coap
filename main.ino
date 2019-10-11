@@ -10,11 +10,11 @@
 
 #include <MKRNB.h>
 
-const char   PINNUMBER[]  = "1111";          // SIM card PIN number
-const char   APN[]        = "mda.ee"; // Telenor IoT Gateway APN
-unsigned int MIC_UDP_PORT = 1234;            // Local port to listen for UDP packets
-unsigned int COPS         = 24201;           // Telenor network shortname
-IPAddress    MIC_IP(172, 16, 15, 14);        // Telenor IoT Gateway IP address
+const char   PINNUMBER[]  = "1111";     // SIM card PIN number
+const char   APN[]        = "mda.ee";   // Telenor IoT Gateway APN (telenor.iotgw)
+unsigned int MIC_UDP_PORT = 1234;       // Local port to listen for UDP packets
+unsigned int COPS         = 24201;      // Telenor network shortname
+IPAddress    MIC_IP(172, 16, 15, 14);   // Telenor IoT Gateway IP address
 byte         packetBuffer[512];
 
 NB nbAccess;
@@ -39,7 +39,7 @@ void setup() {
 
   // Set radio technology
   Serial.print("Set radio technology to NB-IoT or Cat-M1 (7 is for Cat M1 and 8 is for NB-IoT): ");
-  MODEM.send("AT+URAT=7");
+  MODEM.send("AT+URAT=8");
   MODEM.waitForResponse(100, &response);
   Serial.println(response);
   Serial.println("done.");
