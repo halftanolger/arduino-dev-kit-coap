@@ -10,44 +10,72 @@
 
 #include <MKRNB.h>
 
-const char   PINNUMBER[]  = "1111";     // SIM card PIN number
-const char   APN[]        = "mda.ee";   // Telenor IoT Gateway APN (telenor.iotgw)
-unsigned int MIC_UDP_PORT = 1234;       // Local port to listen for UDP packets
-unsigned int COPS         = 24201;      // Telenor network shortname
-IPAddress    MIC_IP(172, 16, 15, 14);   // Telenor IoT Gateway IP address
-byte         packetBuffer[512];
+#include "arduino_secrets.h"
+
+// Enter sensitive data and other configurations in "arduino_secrets.h".
+const char   pinnumber[]      = SECRET_PINNUMBER;
+const char   gprs_apn[]       = SECRET_GPRS_APN;
+unsigned int udp_port         = SECRET_UDP_PORT;
+unsigned int rat              = SECRET_RAT;
+unsigned int cops             = SECRET_COPS;
+
+// 
+IPAddress iotgw_ip(172, 16, 15, 14);
+byte packetBuffer[512];
 
 NB nbAccess;
 GPRS gprs;
 NBUDP Udp;
 
 void setup() {
-  // Reserve space to hold response from modem
-  String response = "";
-  response.reserve(100);
+  String response;
+
+  // Reset the ublox module
+  pinMode(SARA_RESETN, OUTPUT);
+  digitalWrite(SARA_RESETN, HIGH);
+  delay(100);
+  digitalWrite(SARA_RESETN, LOW);
 
   // Open serial communication and wait for port to open
   Serial.begin(115200);
   while (!Serial);
 
   // Wait for modem to get ready
-  int modemStatus;
-  for (modemStatus = MODEM.begin(true); modemStatus != 1; modemStatus = MODEM.begin(true)) {
-    Serial.println("Modem not ready, retrying in 2s...");
-    delay(2000);
-  }
+  Serial.println("Waiting for modem to get ready...");
+  MODEM.begin();
+  while (!MODEM.noop());
+  Serial.println("done.");
 
-  // Set radio technology
-  Serial.print("Set radio technology to NB-IoT or Cat-M1 (7 is for Cat M1 and 8 is for NB-IoT): ");
-  MODEM.send("AT+URAT=7");
+  // Disconnect from any networks
+  Serial.print("Disconnecting from network...");
+  MODEM.sendf("AT+COPS=2");
+  MODEM.waitForResponse(2000, &response);
+  Serial.println(response);
+  Serial.println("done.");
+
+  // Set Radio Access Technology (RAT)
+  Serial.print("Set radio technology to NB-IoT or Cat-M1 (7 is for LTE-M and 8 is for NB-IoT)...");
+  MODEM.sendf("AT+URAT=%s", rat);
   MODEM.waitForResponse(100, &response);
   Serial.println(response);
+  Serial.println("done.");
+
+  // Apply changes
+  Serial.print("Applying changes and saving configuration...");
+  MODEM.sendf("AT+CFUN=15");
+  MODEM.waitForResponse(5000);
+  delay(5000);
+
+  while (MODEM.waitForResponse(1000) != 1) {
+    delay(1000);
+    MODEM.noop();
+  }
   Serial.println("done.");
 
   // Turn modem on
   Serial.println("Modem ready, turn radio on in order to configure it...");
   MODEM.send("AT+CFUN=1");
-  MODEM.waitForResponse(100, &response);
+  MODEM.waitForResponse(2000, &response);
   Serial.println(response);
   Serial.println("done.");
 
@@ -66,41 +94,27 @@ void setup() {
 
   // Set operator to Telenor
   Serial.println("Set operator to Telenor...");
-  MODEM.sendf("AT+COPS=1,2,\"%s\"", COPS);
+  MODEM.sendf("AT+COPS=1,2,\"%s\"", cops);
   MODEM.waitForResponse(2000, &response);
   Serial.println(response);
   Serial.println("done.");
 
   // Set APN and check if network is ready
-  Serial.println("Setup APN...");
-  NB_NetworkStatus_t networkStatus;
-  for (networkStatus = nbAccess.begin(PINNUMBER, APN); networkStatus != NB_READY; networkStatus = nbAccess.begin(PINNUMBER, APN)) {
-    Serial.println("Network not ready, retrying in 2s...");
-    delay(2000);
-  }
-  Serial.println("done.");
-
-  Serial.println("Try to connect to IP network (set up PDP context)...");
-  boolean connected = false;
-  while (!connected) {
-    if (gprs.attachGPRS() == GPRS_READY) {
-      Serial.println("Connected!");
-      connected = true;
-    } else {
-      Serial.println("Not connected, retrying in 1s...");
-      delay(1000);
-    }
-  }
-  Serial.println("done.");
+  connectNB();
 
   Serial.println("Setup socket for connection to MIC...");
-  Udp.begin(MIC_UDP_PORT);
+  Udp.begin(udp_port);
 
   // Seed random number generator with noise from pin 0
   randomSeed(analogRead(0));
 }
 
 void loop() {
+  // Check if connected and if not, reconnect
+  if (nbAccess.status() != NB_READY || gprs.status() != GPRS_READY) {
+    connectNB();
+  }
+
   Serial.print("Send packet to MIC...");
   sendPacket();
 
@@ -116,6 +130,19 @@ void loop() {
   // Wait 30 seconds before sending again
   Serial.println("Wait 30s before sending again...");
   delay(30000);
+}
+
+void connectNB() {
+  Serial.println("Attempting to connect to the cellular network");
+
+  while ((nbAccess.begin(pinnumber) != NB_READY) ||
+         (gprs.attachGPRS(gprs_apn) != GPRS_READY)) {
+    // failed, retry
+    Serial.print(".");
+    delay(1000);
+  }
+
+  Serial.println("You're connected to the cellular network!");
 }
 
 // Send a JSON formatted packet to MIC
@@ -136,7 +163,7 @@ unsigned long sendPacket () {
 
   payload = "{\"temperature\":\"" + p2 + "\", \"humidity\":\"" + p1 + "\",\"latlng\": \"69.681812, 18.988209\"}";
   Serial.println("payload is: " + payload);
-  Udp.beginPacket(MIC_IP, MIC_UDP_PORT);
+  Udp.beginPacket(iotgw_ip, udp_port);
   Udp.write(payload.c_str(), payload.length());
   Udp.endPacket();
 }
