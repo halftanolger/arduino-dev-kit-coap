@@ -1,4 +1,4 @@
-// NB settings
+// Network related configuration
 #define SECRET_PINNUMBER "1111"          // SIM card PIN number
 #define SECRET_GPRS_APN  "telenor.iotgw" // Telenor IoT Gateway APN
 #define SECRET_UDP_PORT  1234            // Telenor IoT Gateway UDP port
