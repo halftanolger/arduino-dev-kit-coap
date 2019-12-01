@@ -19,7 +19,7 @@ unsigned int udp_port         = SECRET_UDP_PORT;
 unsigned int rat              = SECRET_RAT;
 unsigned int cops             = SECRET_COPS;
 
-// 
+// Telenor IoT Gateway IP address
 IPAddress iotgw_ip(172, 16, 15, 14);
 byte packetBuffer[512];
 
