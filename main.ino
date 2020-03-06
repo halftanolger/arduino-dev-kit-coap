@@ -129,8 +129,8 @@ bool connectNB() {
 
 uint16_t sendPacket () {
   // Generate random simulated data
-  float tmp = 20 + (random(0, 9) / 10);
-  float hum = 60 + (random(0, 9) / 10);
+  float tmp = 20 + random(0, 9);
+  float hum = 60 + random(0, 9);
 
   /**
    * Create a JSON payload.
