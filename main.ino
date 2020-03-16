@@ -91,6 +91,11 @@ void setup() {
   MODEM.waitForResponse(4000);
   Serial.println("done.");
 
+  // Check if connected and if not, reconnect
+  if (nbAccess.status() != NB_READY || gprsAccess.status() != GPRS_READY) {
+    connectNB();
+  }
+
   // Initialize CoAP client
   coap.start();
 
